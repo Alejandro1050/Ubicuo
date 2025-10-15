@@ -13,8 +13,8 @@ SERVO_MIN = -0.4
 SERVO_MAX = 0.4
 
 # Motor - configuración corregida
-motor_adelante = DigitalOutputDevice(5)  # Control dirección adelante
-motor_atras = DigitalOutputDevice(6)     # Control dirección atrás  
+motor_adelante = DigitalOutputDevice(6)  # Control dirección adelante
+motor_atras = DigitalOutputDevice(5)     # Control dirección atrás  
 velocidad_motor = PWMOutputDevice(13)    # Control de velocidad PWM
 
 # Variable global para la velocidad
