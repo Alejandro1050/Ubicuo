@@ -1,5 +1,5 @@
 import time
-from gpiozero import DigitalOutputDevice, Servo, PWMOutputDevice
+from gpiozero import DigitalOutputDevice, AngularServo, PWMOutputDevice
 from gpiozero.pins.lgpio import LGPIOFactory
 from gpiozero import Device
 import busio
@@ -14,9 +14,8 @@ i2c = busio.I2C(board.SCL, board.SDA)
 
 xshut_pins = {
     'frontal': 4,
-    'derecha': 17,  
-    'izquierda': 27,
-    'trasero': 22
+    'derecha': 17,
+    'izquierda': 27
 }
 
 shutdown_pins = {}
@@ -26,8 +25,7 @@ for name, pin in xshut_pins.items():
 new_addresses = {
     'izquierda': 0x30,
     'frontal': 0x31,
-    'derecha': 0x32,
-    'trasero': 0x33
+    'derecha': 0x32
 }
 
 sensors = {}
@@ -51,10 +49,17 @@ for name, pin_device in shutdown_pins.items():
 
 # --- Configuración del motor y servo ---
 servo_pin = 19
-servo = Servo(servo_pin, min_pulse_width=0.0005, max_pulse_width=0.0025)
+servo = AngularServo(
+    servo_pin,
+    min_angle=-45,
+    max_angle=45,
+    min_pulse_width=0.0006,
+    max_pulse_width=0.0024
+)
+servo.angle = 0
 
 motor_adelante = DigitalOutputDevice(6)
-motor_atras = DigitalOutputDevice(5)  
+motor_atras = DigitalOutputDevice(5)
 velocidad_motor = PWMOutputDevice(13)
 
 # --- Parámetros ---
@@ -64,116 +69,110 @@ SPEED_TURN = 0.5
 
 # --- Funciones de movimiento ---
 def stop_motor():
-    motor_adelante.on()
-    motor_atras.on()
+    motor_adelante.off()
+    motor_atras.off()
     velocidad_motor.value = 0
 
 def move_forward(speed=SPEED_NORMAL):
-    stop_motor()
-    servo.value = 0
     motor_adelante.on()
     motor_atras.off()
     velocidad_motor.value = speed
+    servo.angle = 0
+    print("Avanzando...")
 
-def move_back(speed=SPEED_NORMAL):
-    stop_motor()
-    servo.value = 0
+def move_back(duration=1):
     motor_adelante.off()
     motor_atras.on()
-    velocidad_motor.value = speed
+    velocidad_motor.value = SPEED_NORMAL
+    servo.angle = 0
+    print("Retrocediendo...")
+    time.sleep(duration)
+    stop_motor()
 
 def turn_left():
-    stop_motor()
-    time.sleep(0.3)
-    servo.value = -0.5
+    servo.angle = -35
     motor_adelante.on()
     motor_atras.off()
     velocidad_motor.value = SPEED_TURN
     print("Girando a la IZQUIERDA")
+    time.sleep(1.0)
+    stop_motor()
 
 def turn_right():
-    stop_motor()
-    time.sleep(0.3)
-    servo.value = 0.5
+    servo.angle = 35
     motor_adelante.on()
     motor_atras.off()
     velocidad_motor.value = SPEED_TURN
     print("Girando a la DERECHA")
-
-# --- Nuevo sistema de decisión ---
-def avoid_obstacle():
-    """Evalúa los sensores y decide la dirección de giro sin memoria."""
-    dist_izq = sensors['izquierda'].range if 'izquierda' in sensors else 1000
-    dist_der = sensors['derecha'].range if 'derecha' in sensors else 1000
-    dist_back = sensors['trasero'].range if 'trasero' in sensors else 1000
-
-    print(f"Obstáculo: Izq={dist_izq}mm, Der={dist_der}mm, Atrás={dist_back}mm")
-
-    # Prioriza el lado más libre
-    if dist_izq > OBSTACLE_DISTANCE and dist_der > OBSTACLE_DISTANCE:
-        # Ambos lados libres, elige el más amplio
-        if dist_izq > dist_der:
-            turn_left()
-        else:
-            turn_right()
-    elif dist_izq > OBSTACLE_DISTANCE:
-        turn_left()
-    elif dist_der > OBSTACLE_DISTANCE:
-        turn_right()
-    else:
-        # Ambos lados bloqueados → retroceder un poco
-        print("Ambos lados bloqueados, retrocediendo...")
-        move_back()
-        time.sleep(1)
-        stop_motor()
-        # Elegir el lado más libre para salir
-        if dist_izq > dist_der:
-            turn_left()
-        else:
-            turn_right()
-    
-    # Mantener el giro un poco
-    time.sleep(1.2)
+    time.sleep(1.0)
     stop_motor()
 
 # --- Lectura de sensores ---
-def check_sensors():
+def read_sensors():
     distances = {}
     for name, sensor in sensors.items():
         try:
             distances[name] = sensor.range
-        except:
-            distances[name] = 1000
+        except Exception:
+            distances[name] = 1000  # Si falla la lectura, asumir distancia segura
     return distances
+
+# --- Sistema de decisión con 3 sensores ---
+def navigate():
+    distances = read_sensors()
+    dist_front = distances.get('frontal', 1000)
+    dist_left = distances.get('izquierda', 1000)
+    dist_right = distances.get('derecha', 1000)
+
+    print(f"Distancias: Frontal={dist_front:4d}mm | Izq={dist_left:4d}mm | Der={dist_right:4d}mm")
+
+    # Evaluar situación
+    if dist_front > OBSTACLE_DISTANCE:
+        # Camino despejado
+        move_forward(SPEED_NORMAL)
+
+    else:
+        # Obstáculo detectado al frente
+        stop_motor()
+        print("🚧 Obstáculo detectado al frente")
+
+        # Decidir hacia dónde girar
+        if dist_left > OBSTACLE_DISTANCE and dist_right > OBSTACLE_DISTANCE:
+            # Ambos lados libres → elegir el más amplio
+            if dist_left > dist_right:
+                turn_left()
+            else:
+                turn_right()
+        elif dist_left > OBSTACLE_DISTANCE:
+            turn_left()
+        elif dist_right > OBSTACLE_DISTANCE:
+            turn_right()
+        else:
+            # Ambos lados bloqueados → retroceder
+            print("🔙 Ambos lados bloqueados, retrocediendo...")
+            move_back(duration=1)
+            # Luego girar hacia el lado más libre
+            if dist_left > dist_right:
+                turn_left()
+            else:
+                turn_right()
 
 # --- Bucle principal ---
 print("\nIniciando navegación automática...")
-print(f"Umbral de obstáculo: {OBSTACLE_DISTANCE}mm")
+print(f"Umbral de obstáculo: {OBSTACLE_DISTANCE} mm")
 
 try:
     move_forward()
     while True:
-        distances = check_sensors()
-        dist_front = distances['frontal']
-
-        print(f"Frontal: {dist_front:4d}mm")
-
-        if dist_front <= OBSTACLE_DISTANCE:
-            print("¡Obstáculo detectado!")
-            stop_motor()
-            avoid_obstacle()
-        else:
-            move_forward(SPEED_NORMAL)
-            servo.value = 0
-        
-        time.sleep(0.1)
+        navigate()
+        time.sleep(0.2)
 
 except KeyboardInterrupt:
     print("\nDeteniendo el sistema...")
 
 finally:
     stop_motor()
-    servo.value = 0
+    servo.angle = 0
     for pin_device in shutdown_pins.values():
         pin_device.off()
-    print("Sistema detenido correctamente")
+    print("Sistema detenido correctamente.")

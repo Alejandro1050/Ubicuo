@@ -10,9 +10,10 @@ i2c = busio.I2C(board.SCL, board.SDA)
 # --- Configuración de los pines XSHUT ---
 # (Asegúrate de que estos números BCM coincidan con tus conexiones físicas)
 xshut_pins = {
-    'izquierdo': board.D4,   # GPIO 4
-    'frontal':   board.D17,  # GPIO 17
-    'derecho':   board.D27   # GPIO 27
+    'frontal': board.D4,   # GPIO 4
+    'derecha':   board.D17,  # GPIO 17
+    'izquierda':   board.D27,   # GPIO 27
+    'trasero': board.D22
 }
 
 # Crear objetos DigitalInOut para cada pin XSHUT
@@ -27,7 +28,8 @@ sensors = {}
 new_addresses = {
     'izquierdo': 0x30,
     'frontal':   0x31,
-    'derecho':   0x32
+    'derecho':   0x32,
+    'trasero': 	 0x33
 }
 
 print("Inicializando sensores...")
@@ -64,8 +66,9 @@ try:
         dist_izq = sensors.get('izquierdo').range if 'izquierdo' in sensors else -1
         dist_fro = sensors.get('frontal').range if 'frontal' in sensors else -1
         dist_der = sensors.get('derecho').range if 'derecho' in sensors else -1
+        dist_tra = sensors.get('trasero').range if 'trasero' in sensors else -1
 
-        print(f"Izquierdo: {dist_izq:4d}mm  |  Frontal: {dist_fro:4d}mm  |  Derecho: {dist_der:4d}mm")
+        print(f"Izquierdo: {dist_izq:4d}mm  |  Frontal: {dist_fro:4d}mm  |  Derecho: {dist_der:4d}mm |  Trasero: {dist_tra:4d}mm" )
 
         time.sleep(0.2) # Pausa entre lecturas
 
