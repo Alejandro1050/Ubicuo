@@ -6,7 +6,7 @@ import busio
 import board
 from adafruit_vl53l0x import VL53L0X
 
-obstacle_distance = 200
+obstacle_distance = 400
 
 # --- Configuración del hardware ---
 Device.pin_factory = LGPIOFactory()
@@ -119,10 +119,12 @@ def navigate():
     
     # Si el sensor de frente y de la izquierda, nos movemos a la derecha
     if dist_front <= obstacle_distance and dist_left <= obstacle_distance:
+        brake()
         right()
     
     # Si el sensor de frente y de la derecha, nos movemos a la izquierda
     if dist_front <= obstacle_distance and dist_right <= obstacle_distance:
+        brake()
         left()
         
     # Si el sensor de frente, de la derecha y de la izquierda, retrocedemos y doblamos    
@@ -130,7 +132,7 @@ def navigate():
         back()
         time.sleep(1)
         left()
-        
+    
 try:
     forward()
     while True:
