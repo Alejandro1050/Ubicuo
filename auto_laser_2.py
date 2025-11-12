@@ -16,8 +16,8 @@ i2c = busio.I2C(board.SCL, board.SDA)
 
 xshut_pins = {
     'frontal': 4,
-    'derecha': 17,
-    'izquierda': 27
+    'derecha': 27,
+    'izquierda': 22
 }
 
 shutdown_pins = {}
