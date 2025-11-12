@@ -13,9 +13,9 @@ i2c = busio.I2C(board.SCL, board.SDA)  # Mantenemos busio para el sensor VL53L0X
 # Usamos números BCM (GPIO) para los pines
 xshut_pins = {
     'frontal': 4,    # GPIO 4
-    'derecha': 17,   # GPIO 17  
-    'izquierda': 27, # GPIO 27
-    'trasero': 22    # GPIO 22
+    'derecha': 27,   # GPIO 17  
+    'izquierda': 22, # GPIO 27
+    'trasero': 17     # GPIO 22
 }
 
 # Crear objetos DigitalOutputDevice para cada pin XSHUT
